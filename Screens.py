@@ -11,6 +11,7 @@ import datetime
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support import expected_conditions as EC
+import itertools
 
 
 def lemm_finder(list_of_text, stop_words=0):
@@ -70,9 +71,7 @@ def get_screens(city_list, url='https://lostarmour.info/map/?ysclid=latojsz8nr36
     driver.switch_to.window(window_after)
     # Экран в полный формат
     driver.fullscreen_window()
-    # Создаем папку для фото
-    if not os.path.exists(f"Скриншоты/{Date}"):
-        os.mkdir(f"Скриншоты/{Date}")
+
     for city in tqdm(city_list):
         try:
             # Ввод тектса
@@ -93,7 +92,10 @@ def get_screens(city_list, url='https://lostarmour.info/map/?ysclid=latojsz8nr36
             driver.find_element(
                 By.XPATH,
                 "//span[@class='inline-image _loaded sidebar-toggle-button__icon']").click()
-            time.sleep(1)
+            # Создаем папку для фото
+            if not os.path.exists(f"Скриншоты/{Date}"):
+                os.mkdir(f"Скриншоты/{Date}")
+
             # Делаем скриншот
             driver.save_screenshot(f'Скриншоты/{Date}/{city}.png')
             # Отчистить поле поиска нажав кнопку
@@ -117,6 +119,17 @@ def find_words(key_words, text):
     return find_list
 
 
+def find_distance(sentence, word1, word2):
+    """Находит колличесво слов между двумя словами в тексте"""
+    distances = []
+    while sentence != "":
+        _, _, sentence = sentence.partition(word1)
+        text, _, _ = sentence.partition(word2)
+        if text != "":
+            distances.append(len(text.split()))
+    return distances
+
+
 def text_cheсk(df_with_text, text_column_name, all_key_words, cities_list):
     """определеяет в каких текстах есть ключивые слова (пересечение городов и проблеммы)"""
     df_texts = df_with_text.copy()
@@ -126,11 +139,34 @@ def text_cheсk(df_with_text, text_column_name, all_key_words, cities_list):
     df_texts["New_text"] = new_text_list
     df_texts["Contains_key_words"] = df_texts['New_text'].str.contains('|'.join(all_key_words)).astype(int)
     df_texts["Contains_cities_list"] = df_texts['New_text'].str.contains('|'.join(cities_list)).astype(int)
-    df_texts["Contains_sum"] = df_texts["Contains_cities_list"] + df_texts["Contains_key_words"]
-    df_with_text['contain_key_words'] = contain_key_words_list = [1 if a == 2 else 0 for a in df_texts["Contains_sum"]]
+
+    # Разделяем ключевые словосочетания на слова
+    all_key_words_split = []
+    for i in all_key_words:
+        all_key_words_split = all_key_words_split + i.split()
+    all_key_words_split = list(set(all_key_words_split))
+    # Формируем все возможные комбинации названий городов и ключевых слов
+    a = [cities_list, all_key_words_split]
+    all_combinations = list(itertools.product(*a))
+
+    good_index = []
+    for text_index in df_texts.index:
+        for iteration in range(len(all_combinations)):
+            try:
+                word_distance = find_distance(df_texts.loc[text_index]['New_text'], all_combinations[iteration][0],
+                                              all_combinations[iteration][1])[0]
+                if word_distance <= 20:
+                    good_index.append(text_index)
+            except:
+                continue
+    good_index = set(good_index)
+    df_texts["Contains_20_words_length"] = [1 if a in good_index else 0 for a in df_texts.index]
+    df_texts["Contains_sum"] = df_texts["Contains_cities_list"] + df_texts["Contains_key_words"] + df_texts[
+        "Contains_20_words_length"]
+    df_with_text['contain_key_words'] = contain_key_words_list = [1 if a == 3 else 0 for a in df_texts["Contains_sum"]]
     df_with_text['key_words_find'] = [
         find_words(all_key_words + cities_list, df_texts.loc[index]['New_text']) if df_texts.loc[index][
-                                                                                        'Contains_sum'] == 2 else 0 for
+                                                                                        'Contains_sum'] == 3 else 0 for
         index in df_texts.index]
     return df_with_text
 
