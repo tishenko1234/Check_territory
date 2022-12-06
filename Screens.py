@@ -79,6 +79,7 @@ def get_screens(city_list, url='https://lostarmour.info/map/?ysclid=latojsz8nr36
             driver.find_element(By.TAG_NAME, "input").send_keys(city)
             # Нажать на ввод поиска
             driver.find_element(By.TAG_NAME, "button").click()
+            time.sleep(2)
             # Цикл для зума
             for i in range(10):
                 time.sleep(0.1)
@@ -171,6 +172,7 @@ def text_cheсk(df_with_text, text_column_name, all_key_words, cities_list):
         index in df_texts.index]
     return df_with_text
 
+
 def get_territory_status(key_words_find: list, result_column: dict):
     territory_status = []
     for i in key_words_find:
@@ -185,11 +187,12 @@ def get_territory_status(key_words_find: list, result_column: dict):
                 except KeyError:
                     pass
                 else:
-                    res_list.append([j, result_column[j]])
+                    res_list.append(f'{j} – {result_column[j]}'.replace("'", ""))
 
             territory_status.append(res_list)
 
     return territory_status
+
 
 # Определяем сегодняшнюю дату
 now = datetime.datetime.now()
@@ -198,6 +201,7 @@ Date = now.strftime("%d_%m_%Y")
 df_cities = pd.read_excel('Входные данные/Список_населенных_пунктов.xlsx')
 cities_list = df_cities['Населенные_пункты'].dropna()
 get_screens(city_list=cities_list, url='https://lostarmour.info/map/?ysclid=latojsz8nr362636823)', Date=Date)
+
 ############################################################################################################
 """БЛОК ТИМОФЕЯ"""
 
@@ -224,5 +228,6 @@ text_cheсk_df = text_cheсk(df_with_text=df_texts0, text_column_name='Выде�
 
 text_cheсk_df['territory_status'] = get_territory_status(list(text_cheсk_df['key_words_find']), result_column)
 
-text_cheсk_df.to_excel(f'Результат_обработки/{Date}.xlsx')
-
+text_cheсk_df_final = text_cheсk_df[['Дата', 'Источник', 'Заголовок', 'Выдержки из текста', 'Ссылка на источник',
+                                     'contain_key_words', 'key_words_find', 'territory_status']]
+text_cheсk_df_final.to_excel(f'Результат_обработки/{Date}.xlsx', index=False)

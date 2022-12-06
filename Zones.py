@@ -65,15 +65,15 @@ def get_zone_name(image_colors: list):
         return 'Не в зоне ДНР/ЛНР'
 
 
-result_column = {}
-image_names = os.listdir(f'Скриншоты/{Date}')
-
-for image_name in image_names:
-    image_colors = get_image_colors(image_name)
-    zone_name = get_zone_name(image_colors)
-    result_column[image_name.lower()[:-4]] = zone_name
-
-print(result_column)
+# result_column = {}
+# image_names = os.listdir(f'Скриншоты/{Date}')
+#
+# for image_name in image_names:
+#     image_colors = get_image_colors(image_name)
+#     zone_name = get_zone_name(image_colors)
+#     result_column[image_name.lower()[:-4]] = zone_name
+#
+# print(result_column)
 
 
 def get_territory_status(key_words_find: list, result_column: dict):
