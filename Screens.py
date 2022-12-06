@@ -12,6 +12,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support import expected_conditions as EC
 import itertools
+import Zones
 
 
 def lemm_finder(list_of_text, stop_words=0):
@@ -170,6 +171,25 @@ def text_cheсk(df_with_text, text_column_name, all_key_words, cities_list):
         index in df_texts.index]
     return df_with_text
 
+def get_territory_status(key_words_find: list, result_column: dict):
+    territory_status = []
+    for i in key_words_find:
+        if i == 0:
+            territory_status.append(0)
+        else:
+            row_list = i.split(', ')
+            res_list = []
+            for j in row_list:
+                try:
+                    result_column[j]
+                except KeyError:
+                    pass
+                else:
+                    res_list.append([j, result_column[j]])
+
+            territory_status.append(res_list)
+
+    return territory_status
 
 # Определяем сегодняшнюю дату
 now = datetime.datetime.now()
@@ -181,6 +201,14 @@ get_screens(city_list=cities_list, url='https://lostarmour.info/map/?ysclid=lato
 ############################################################################################################
 """БЛОК ТИМОФЕЯ"""
 
+result_column = {}
+image_names = os.listdir(f'Скриншоты/{Date}')
+
+for image_name in image_names:
+    image_colors = Zones.get_image_colors(image_name)
+    zone_name = Zones.get_zone_name(image_colors)
+    result_column[image_name.lower()[:-4]] = zone_name
+
 ############################################################################################################
 # Скачиваем данные
 df_texts0 = pd.read_excel('Входные данные/Тексты.xlsx')
@@ -191,6 +219,10 @@ df_cities = pd.read_excel('Входные данные/Список_населе
 cities_list = lemm_finder(list(df_cities['Населенные_пункты'].dropna()), stop_words=['область', 'обл', 'край', 'обл.'])
 
 # Выявление сообщений с ключевыми словами и городами
-text_cheсk(df_with_text=df_texts0, text_column_name='Выдержки из текста',
-           all_key_words=lemm_finder(list(df_cities['Тип_проблемы'].dropna())), cities_list=cities_list).to_excel(
-    f'Результат_обработки/{Date}.xlsx')
+text_cheсk_df = text_cheсk(df_with_text=df_texts0, text_column_name='Выдержки из текста',
+                           all_key_words=lemm_finder(list(df_cities['Тип_проблемы'].dropna())), cities_list=cities_list)
+
+text_cheсk_df['territory_status'] = get_territory_status(list(text_cheсk_df['key_words_find']), result_column)
+
+text_cheсk_df.to_excel(f'Результат_обработки/{Date}.xlsx')
+
