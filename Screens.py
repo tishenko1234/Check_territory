@@ -4,21 +4,22 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 import time
 import pandas as pd
-import os
 import re
 import spacy
-import datetime
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support import expected_conditions as EC
 import itertools
-import Zones
+import os
+import cv2
+import math
+import datetime
 
 
-def lemm_finder(list_of_text, stop_words=0):
+def lemm_finder(list_of_text, stop_words=0, wrong_geoobjects=0):
     """ Функция позволяет перевети все формы слова в леммы"""
     lemma_list = []
-    for i in tqdm(list_of_text):
+    for i in tqdm(list_of_text, desc='lemm_finder'):
         text = ' '.join(re.findall(r'[А-Яа-я]+', i))
         doc = nlp(text)
         lemma = []
@@ -29,6 +30,11 @@ def lemm_finder(list_of_text, stop_words=0):
             for j in stop_words:
                 text_new = re.sub(rf'( {j}\b)', '', text_new)
         lemma_list.append(text_new)
+    if wrong_geoobjects != 0:
+        lemma_list = [c for c in
+                      [0 if len([b for b in a.split() if b not in wrong_geoobjects]) < len(a.split()) else a if len(
+                          a.split()) != 1 else 0
+                       for a in lemma_list if a not in wrong_geoobjects] if c != 0]
     return lemma_list
 
 
@@ -73,13 +79,12 @@ def get_screens(city_list, url='https://lostarmour.info/map/?ysclid=latojsz8nr36
     # Экран в полный формат
     driver.fullscreen_window()
 
-    for city in tqdm(city_list):
+    for city in tqdm(city_list, desc='get_screens'):
         try:
             # Ввод тектса
             driver.find_element(By.TAG_NAME, "input").send_keys(city)
             # Нажать на ввод поиска
             driver.find_element(By.TAG_NAME, "button").click()
-            time.sleep(2)
             # Цикл для зума
             for i in range(10):
                 time.sleep(0.1)
@@ -117,7 +122,7 @@ def find_words(key_words, text):
     for i in key_words:
         if len(re.findall(rf'{i}', text)) != 0:
             find_list = find_list + re.findall(rf'{i}', text)
-    find_list = ', '.join(find_list)
+    # find_list = ', '.join(find_list)
     return find_list
 
 
@@ -132,7 +137,7 @@ def find_distance(sentence, word1, word2):
     return distances
 
 
-def text_cheсk(df_with_text, text_column_name, all_key_words, cities_list):
+def text_cheсk(df_with_text, text_column_name, all_key_words, cities_list, russian_cities_list, check_cities_list):
     """определеяет в каких текстах есть ключивые слова (пересечение городов и проблеммы)"""
     df_texts = df_with_text.copy()
     # Выделяем леммы
@@ -151,26 +156,95 @@ def text_cheсk(df_with_text, text_column_name, all_key_words, cities_list):
     a = [cities_list, all_key_words_split]
     all_combinations = list(itertools.product(*a))
 
-    good_index = []
-    for text_index in df_texts.index:
+    df_20_words_length = pd.DataFrame()
+    for text_index in tqdm(list(df_texts.index), desc='text_cheсk'):
         for iteration in range(len(all_combinations)):
             try:
                 word_distance = find_distance(df_texts.loc[text_index]['New_text'], all_combinations[iteration][0],
                                               all_combinations[iteration][1])[0]
-                if word_distance <= 20:
-                    good_index.append(text_index)
+                if word_distance <= 10:
+                    df = pd.DataFrame()
+                    df['good_index'] = [text_index]
+                    df['word_1'] = [all_combinations[iteration]]
+                    df_20_words_length = pd.concat([df_20_words_length, df])
             except:
                 continue
-    good_index = set(good_index)
+    good_index = set(list(df_20_words_length["good_index"]))
     df_texts["Contains_20_words_length"] = [1 if a in good_index else 0 for a in df_texts.index]
     df_texts["Contains_sum"] = df_texts["Contains_cities_list"] + df_texts["Contains_key_words"] + df_texts[
         "Contains_20_words_length"]
-    df_with_text['contain_key_words'] = contain_key_words_list = [1 if a == 3 else 0 for a in df_texts["Contains_sum"]]
-    df_with_text['key_words_find'] = [
-        find_words(all_key_words + cities_list, df_texts.loc[index]['New_text']) if df_texts.loc[index][
-                                                                                        'Contains_sum'] == 3 else 0 for
-        index in df_texts.index]
+    df_with_text['contain_key_words'] = [1 if a == 3 else 0 for a in df_texts["Contains_sum"]]
+    df_with_text['problem_type'] = [
+        ','.join(list(set(find_words(all_key_words, df_texts.loc[index]['New_text'])))) if
+        df_texts.loc[index]['Contains_sum'] == 3 else 0 for index in df_texts.index]
+
+    df_with_text['russian_cities'] = [
+        ','.join(list(set(find_words(russian_cities_list, df_texts.loc[index]['New_text'])))) if
+        df_texts.loc[index]['Contains_sum'] == 3 else 0 for index in df_texts.index]
+
+    df_with_text['checked_cities'] = [
+        ','.join(list(set(find_words(check_cities_list, df_texts.loc[index]['New_text'])))) if
+        df_texts.loc[index]['Contains_sum'] == 3 else 0 for index in df_texts.index]
+    df_with_text
     return df_with_text
+
+
+def get_image_path(image_name: str):
+    now = datetime.datetime.now()
+    Date = now.strftime("%d_%m_%Y")
+
+    image_path = f'Скриншоты/{Date}' + '/' + image_name
+
+    return image_path
+
+
+def get_image_colors(image_name: str):
+    image_path = get_image_path(image_name)
+    image = cv2.imread(image_path)
+
+    image_colors = []
+
+    for i in (1, 2, 3, 4):
+        gbr_colors = image[image.shape[0] // i - 1, image.shape[1] // i - 1]
+        image_colors.append(gbr_colors[::-1])
+
+    return image_colors
+
+
+def calculate_color_differences_percent(first_color: list, second_color: list):
+    maximum_difference = math.sqrt(3 * 256 ** 2)
+
+    color_difference = math.sqrt((first_color[0] - second_color[0]) ** 2 + (first_color[1] - second_color[1]) ** 2 + (
+            first_color[2] - second_color[2]) ** 2)
+
+    color_difference_percent = color_difference / maximum_difference * 100
+
+    return color_difference_percent
+
+
+def check_colors(image_colors: list, zone_colors: list):
+    count = 0
+    for i in image_colors:
+        for j in zone_colors:
+            if calculate_color_differences_percent(i, j) < 6.00:
+                count += 1
+
+    if count >= 2:
+        return True
+    else:
+        return False
+
+
+def get_zone_name(image_colors: list):
+    orange_zone_colors = [[250, 223, 186], [204, 200, 182], [223, 213, 149]]
+    red_zone_colors = [[196, 177, 190], [242, 200, 194], [215, 190, 156]]
+
+    if check_colors(image_colors, orange_zone_colors):
+        return 'Под контролем РФ'
+    elif check_colors(image_colors, red_zone_colors):
+        return 'Под контролем РФ'
+    else:
+        return 'Не под контролем РФ'
 
 
 def get_territory_status(key_words_find: list, result_column: dict):
@@ -179,7 +253,7 @@ def get_territory_status(key_words_find: list, result_column: dict):
         if i == 0:
             territory_status.append(0)
         else:
-            row_list = i.split(', ')
+            row_list = i.split(',')
             res_list = []
             for j in row_list:
                 try:
@@ -187,47 +261,66 @@ def get_territory_status(key_words_find: list, result_column: dict):
                 except KeyError:
                     pass
                 else:
-                    res_list.append(f'{j} – {result_column[j]}'.replace("'", ""))
+                    res_list.append(f'{j} - {result_column[j]}')
 
             territory_status.append(res_list)
 
     return territory_status
 
 
+########################################################################################################################
+
 # Определяем сегодняшнюю дату
 now = datetime.datetime.now()
 Date = now.strftime("%d_%m_%Y")
-# собираем лист название городов
-df_cities = pd.read_excel('Входные данные/Список_населенных_пунктов.xlsx')
-cities_list = df_cities['Населенные_пункты'].dropna()
-get_screens(city_list=cities_list, url='https://lostarmour.info/map/?ysclid=latojsz8nr362636823)', Date=Date)
 
-############################################################################################################
-"""БЛОК ТИМОФЕЯ"""
-
-result_column = {}
-image_names = os.listdir(f'Скриншоты/{Date}')
-
-for image_name in image_names:
-    image_colors = Zones.get_image_colors(image_name)
-    zone_name = Zones.get_zone_name(image_colors)
-    result_column[image_name.lower()[:-4]] = zone_name
-
-############################################################################################################
-# Скачиваем данные
-df_texts0 = pd.read_excel('Входные данные/Тексты.xlsx')
 # Загружаем модель для обработки русского текста
 nlp = spacy.load('ru_core_news_sm-3.4.0')
-df_cities = pd.read_excel('Входные данные/Список_населенных_пунктов.xlsx')
-# собираем лист название городов
-cities_list = lemm_finder(list(df_cities['Населенные_пункты'].dropna()), stop_words=['область', 'обл', 'край', 'обл.'])
+# Скачиваем список городов интерфакса
+df_cities = pd.read_excel('Входные данные/Аналитическая панель СКАН (1).xlsx', sheet_name='Регионы')
+# Убираем лишние города из списка
+cities_list = lemm_finder(list(df_cities['Наименование'].dropna()),
+                          stop_words=['область', 'обл', 'край', 'обл.', 'город', 'республика', 'район', 'на'],
+                          wrong_geoobjects=['сша', 'украина', 'киев', 'европа', 'молдавия'])
+# разделяем словосочетания на слова
+cities_list_new = []
+for i in cities_list:
+    cities_list_new = cities_list_new + i.split()
+cities_list_new = [a for a in cities_list_new if a not in ['республика']]
+
+# Скачиваем российские территории
+geoobject_our = pd.read_excel('our_list_of_geobjects.xlsx')
+geoobject_our_list = []
+for i in list(geoobject_our['name_area_new'].dropna()) + list(geoobject_our['region_name_new'].dropna().unique()):
+    geoobject_our_list = geoobject_our_list + i.split()
+
+# Определяем российские города из списка интерфакса и те, что надо проверить
+russian_cities_list = [a for a in cities_list_new if a in geoobject_our_list]
+check_cities_list = [a for a in cities_list_new if a not in geoobject_our_list]
+
+get_screens(city_list=check_cities_list, url='https://lostarmour.info/map/?ysclid=latojsz8nr362636823)', Date=Date)
+########################################################################################################################
+
+# Скачиваем данные
+df_texts0 = pd.read_excel('Входные данные/Тексты.xlsx')
+df_key_words = pd.read_excel('Входные данные/Список_населенных_пунктов.xlsx')
 
 # Выявление сообщений с ключевыми словами и городами
 text_cheсk_df = text_cheсk(df_with_text=df_texts0, text_column_name='Выдержки из текста',
-                           all_key_words=lemm_finder(list(df_cities['Тип_проблемы'].dropna())), cities_list=cities_list)
+                           all_key_words=lemm_finder(list(df_key_words['Тип_проблемы'].dropna())),
+                           cities_list=cities_list_new,
+                           russian_cities_list=russian_cities_list, check_cities_list=check_cities_list)
+# Блок Тимофея
+image_names = os.listdir(f'Скриншоты/{Date}')
+result_column = {}
+for image_name in image_names:
+    image_colors = get_image_colors(image_name)
+    zone_name = get_zone_name(image_colors)
+    result_column[image_name.lower()[:-4]] = zone_name
 
-text_cheсk_df['territory_status'] = get_territory_status(list(text_cheсk_df['key_words_find']), result_column)
+text_cheсk_df['territory_status'] = get_territory_status(list(text_cheсk_df['checked_cities']), result_column)
 
 text_cheсk_df_final = text_cheсk_df[['Дата', 'Источник', 'Заголовок', 'Выдержки из текста', 'Ссылка на источник',
-                                     'contain_key_words', 'key_words_find', 'territory_status']]
+                                     'contain_key_words', 'problem_type', 'russian_cities', 'checked_cities',
+                                     'territory_status']]
 text_cheсk_df_final.to_excel(f'Результат_обработки/{Date}.xlsx', index=False)
