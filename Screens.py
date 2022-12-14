@@ -56,63 +56,122 @@ def test_page(driver, delay, element):
 
 # запускае браузер
 def get_screens(city_list, url='https://lostarmour.info/map/?ysclid=latojsz8nr362636823)', Date='29_11_22'):
-    # Настрока и запуск браузера
-    options = Options()
-    options.page_load_strategy = 'normal'
-    driver = webdriver.Chrome(executable_path="./chromedriver.exe", options=options)
-    # Переход на сайт
-    driver.get(url)
-    # Переключаемся на iframe
-    driver.switch_to.frame(driver.find_element(By.TAG_NAME, "iframe"))
-    window_before = driver.window_handles[0]
-    # Переходим на страницу яндекс карт
     try:
-        driver.find_element(By.XPATH,
-                            "/html/body/div/div/div/div[2]/div[1]/div[1]/div[4]/div/a").click()
-    except:
-        driver.find_element(By.XPATH,
-                            "/html/body/div/div/div/div[2]/div[1]/div[1]/div[4]/div/a").click()
-    window_after = driver.window_handles[1]
-    # Переключаемся обратно
-    driver.switch_to.default_content()
-    driver.switch_to.window(window_after)
-    # Экран в полный формат
-    driver.fullscreen_window()
-
-    for city in tqdm(city_list, desc='get_screens'):
+        # Настрока и запуск браузера
+        options = Options()
+        options.page_load_strategy = 'normal'
+        driver = webdriver.Chrome(executable_path="./chromedriver_mac_os.exe", options=options)
+        # Переход на сайт
+        driver.get(url)
+        # Переключаемся на iframe
+        driver.switch_to.frame(driver.find_element(By.TAG_NAME, "iframe"))
+        window_before = driver.window_handles[0]
+        # Переходим на страницу яндекс карт
         try:
-            # Ввод тектса
-            driver.find_element(By.TAG_NAME, "input").send_keys(city)
-            # Нажать на ввод поиска
-            driver.find_element(By.TAG_NAME, "button").click()
-            # Цикл для зума
-            for i in range(10):
-                time.sleep(0.1)
-                # Нажать на кнопку приближения
-                driver.find_element(By.CLASS_NAME, "zoom-control__zoom-in").click()
-            # Проверяем загрузился ли элемент
-            test_page(driver=driver, delay=3,
-                      element=(By.XPATH,
-                               "//span[@class='inline-image _loaded sidebar-toggle-button__icon']"))
-            time.sleep(1)
-            # Нажать на кнопку для того, чтобы убрать поиск
-            driver.find_element(
-                By.XPATH,
-                "//span[@class='inline-image _loaded sidebar-toggle-button__icon']").click()
-            # Создаем папку для фото
-            if not os.path.exists(f"Скриншоты/{Date}"):
-                os.mkdir(f"Скриншоты/{Date}")
-
-            # Делаем скриншот
-            driver.save_screenshot(f'Скриншоты/{Date}/{city}.png')
-            # Отчистить поле поиска нажав кнопку
-            driver.find_element(
-                By.XPATH,
-                "//div[@class='small-search-form-view__icon _type_close']").click()
+            driver.find_element(By.XPATH,
+                                "/html/body/div/div/div/div[2]/div[1]/div[1]/div[4]/div/a").click()
         except:
-            print(f'Проблема с городом {city}')
-            continue
-    driver.quit()
+            driver.find_element(By.XPATH,
+                                "/html/body/div/div/div/div[2]/div[1]/div[1]/div[4]/div/a").click()
+        window_after = driver.window_handles[1]
+        # Переключаемся обратно
+        driver.switch_to.default_content()
+        driver.switch_to.window(window_after)
+        # Экран в полный формат
+        driver.fullscreen_window()
+
+        for city in tqdm(city_list,desc='get_screens'):
+            try:
+                # Ввод тектса
+                driver.find_element(By.TAG_NAME, "input").send_keys(city)
+                # Нажать на ввод поиска
+                driver.find_element(By.TAG_NAME, "button").click()
+                # Цикл для зума
+                for i in range(10):
+                    time.sleep(0.1)
+                    # Нажать на кнопку приближения
+                    driver.find_element(By.CLASS_NAME, "zoom-control__zoom-in").click()
+                # Проверяем загрузился ли элемент
+                test_page(driver=driver, delay=3,
+                          element=(By.XPATH,
+                                   "//span[@class='inline-image _loaded sidebar-toggle-button__icon']"))
+                time.sleep(1)
+                # Нажать на кнопку для того, чтобы убрать поиск
+                driver.find_element(
+                    By.XPATH,
+                    "//span[@class='inline-image _loaded sidebar-toggle-button__icon']").click()
+                # Создаем папку для фото
+                if not os.path.exists(f"Скриншоты/{Date}"):
+                    os.mkdir(f"Скриншоты/{Date}")
+
+                # Делаем скриншот
+                driver.save_screenshot(f'Скриншоты/{Date}/{city}.png')
+                # Отчистить поле поиска нажав кнопку
+                driver.find_element(
+                    By.XPATH,
+                    "//div[@class='small-search-form-view__icon _type_close']").click()
+            except:
+                print(f'Проблема с городом {city}')
+                continue
+        driver.quit()
+    except:
+        # Настрока и запуск браузера
+        options = Options()
+        options.page_load_strategy = 'normal'
+        driver = webdriver.Chrome(executable_path="./chromedriver_windows.exe", options=options)
+        # Переход на сайт
+        driver.get(url)
+        # Переключаемся на iframe
+        driver.switch_to.frame(driver.find_element(By.TAG_NAME, "iframe"))
+        window_before = driver.window_handles[0]
+        # Переходим на страницу яндекс карт
+        try:
+            driver.find_element(By.XPATH,
+                                "/html/body/div/div/div/div[2]/div[1]/div[1]/div[4]/div/a").click()
+        except:
+            driver.find_element(By.XPATH,
+                                "/html/body/div/div/div/div[2]/div[1]/div[1]/div[4]/div/a").click()
+        window_after = driver.window_handles[1]
+        # Переключаемся обратно
+        driver.switch_to.default_content()
+        driver.switch_to.window(window_after)
+        # Экран в полный формат
+        driver.fullscreen_window()
+
+        for city in tqdm(city_list,desc='get_screens'):
+            try:
+                # Ввод тектса
+                driver.find_element(By.TAG_NAME, "input").send_keys(city)
+                # Нажать на ввод поиска
+                driver.find_element(By.TAG_NAME, "button").click()
+                # Цикл для зума
+                for i in range(10):
+                    time.sleep(0.1)
+                    # Нажать на кнопку приближения
+                    driver.find_element(By.CLASS_NAME, "zoom-control__zoom-in").click()
+                # Проверяем загрузился ли элемент
+                test_page(driver=driver, delay=3,
+                          element=(By.XPATH,
+                                   "//span[@class='inline-image _loaded sidebar-toggle-button__icon']"))
+                time.sleep(1)
+                # Нажать на кнопку для того, чтобы убрать поиск
+                driver.find_element(
+                    By.XPATH,
+                    "//span[@class='inline-image _loaded sidebar-toggle-button__icon']").click()
+                # Создаем папку для фото
+                if not os.path.exists(f"Скриншоты/{Date}"):
+                    os.mkdir(f"Скриншоты/{Date}")
+
+                # Делаем скриншот
+                driver.save_screenshot(f'Скриншоты/{Date}/{city}.png')
+                # Отчистить поле поиска нажав кнопку
+                driver.find_element(
+                    By.XPATH,
+                    "//div[@class='small-search-form-view__icon _type_close']").click()
+            except:
+                print(f'Проблема с городом {city}')
+                continue
+        driver.quit()
 
 
 def find_words(key_words, text):
