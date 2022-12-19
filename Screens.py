@@ -14,7 +14,7 @@ import os
 import cv2
 import math
 import datetime
-
+import imageio.v2 as imageio
 
 def lemm_finder(list_of_text, stop_words=0, wrong_geoobjects=0):
     """ Функция позволяет перевети все формы слова в леммы"""
@@ -258,14 +258,24 @@ def get_image_path(image_name: str):
 
 
 def get_image_colors(image_name: str):
-    image_path = get_image_path(image_name)
-    image = cv2.imread(image_path)
+    try:
+        image_path = get_image_path(image_name)
+        image = cv2.imread(image_path)
 
-    image_colors = []
+        image_colors = []
 
-    for i in (1, 2, 3, 4):
-        gbr_colors = image[image.shape[0] // i - 1, image.shape[1] // i - 1]
-        image_colors.append(gbr_colors[::-1])
+        for i in (1, 2, 3, 4):
+            gbr_colors = image[image.shape[0] // i - 1, image.shape[1] // i - 1]
+            image_colors.append(gbr_colors[::-1])
+    except:
+        image_path = get_image_path(image_name)
+        image = imageio.imread(image_path)
+
+        image_colors = []
+
+        for i in (1, 2, 3, 4):
+            gbr_colors = image[image.shape[0] // i - 1, image.shape[1] // i - 1]
+            image_colors.append(gbr_colors[0:3])
 
     return image_colors
 
