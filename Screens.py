@@ -8,7 +8,7 @@ import re
 import spacy
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support import expected_conditions as ec
 import itertools
 import os
 import cv2
@@ -16,11 +16,13 @@ import math
 import datetime
 
 
-def lemm_finder(list_of_text, stop_words=0, wrong_geoobjects=0):
+def lemm_finder(list_of_text, stop_words=None, wrong_geoobjects=0):
     """ Функция позволяет перевети все формы слова в леммы"""
+    if stop_words is None:
+        stop_words = [0]
     lemma_list = []
-    for i in tqdm(list_of_text, desc='lemm_finder'):
-        text = ' '.join(re.findall(r'[А-Яа-я]+', i))
+    for text in tqdm(list_of_text, desc='lemm_finder'):
+        text = ' '.join(re.findall(r'[А-Яа-я]+', text))
         doc = nlp(text)
         lemma = []
         for token in doc:
@@ -28,7 +30,7 @@ def lemm_finder(list_of_text, stop_words=0, wrong_geoobjects=0):
         text_new = ' '.join(lemma)
         if stop_words != 0:
             for j in stop_words:
-                text_new = re.sub(rf'( {j}\b)', '', text_new)
+                text_new = re.sub(rf"( {j}\b)", '', text_new)
         lemma_list.append(text_new)
     if wrong_geoobjects != 0:
         lemma_list = [c for c in
@@ -39,25 +41,25 @@ def lemm_finder(list_of_text, stop_words=0, wrong_geoobjects=0):
 
 
 def test_page(driver, delay, element):
-    '''Функция проверки загрузки страницы
-        delay - количесво секунд ожидания
+    """Функция проверки загрузки страницы
+        delay - количество секунд ожидания
         element - что ищем пример (By.CLASS_NAME, 'popup-obj')
         driver - драйвер пример
         if __name__ == "__main__":
-        driver = Chrome(executable_path="./chromedriver.exe")'''
+        driver = Chrome(executable_path="./chromedriver.exe")"""
     # проверка загрузилась ли стр
     try:
-        myElem = WebDriverWait(driver, delay).until(
-            EC.presence_of_element_located(
+        WebDriverWait(driver, delay).until(
+            ec.presence_of_element_located(
                 element))
     except TimeoutException:
         print("Loading took too much time!")
 
 
-# запускае браузер
-def get_screens(city_list, url='https://lostarmour.info/map/?ysclid=latojsz8nr362636823)', Date='29_11_22'):
+# запускает браузер
+def get_screens(city_list, url='https://lostarmour.info/map/?ysclid=latojsz8nr362636823)', date='29_11_22'):
     try:
-        # Настрока и запуск браузера
+        # Настройка и запуск браузера
         options = Options()
         options.page_load_strategy = 'normal'
         driver = webdriver.Chrome(executable_path="./chromedriver_mac_os.exe", options=options)
@@ -101,11 +103,11 @@ def get_screens(city_list, url='https://lostarmour.info/map/?ysclid=latojsz8nr36
                     By.XPATH,
                     "//span[@class='inline-image _loaded sidebar-toggle-button__icon']").click()
                 # Создаем папку для фото
-                if not os.path.exists(f"Скриншоты/{Date}"):
-                    os.mkdir(f"Скриншоты/{Date}")
+                if not os.path.exists(f"Скриншоты/{date}"):
+                    os.mkdir(f"Скриншоты/{date}")
 
                 # Делаем скриншот
-                driver.save_screenshot(f'Скриншоты/{Date}/{city}.png')
+                driver.save_screenshot(f'Скриншоты/{date}/{city}.png')
                 # Отчистить поле поиска нажав кнопку
                 driver.find_element(
                     By.XPATH,
@@ -140,7 +142,7 @@ def get_screens(city_list, url='https://lostarmour.info/map/?ysclid=latojsz8nr36
 
         for city in tqdm(city_list,desc='get_screens'):
             try:
-                # Ввод тектса
+                # Ввод текста
                 driver.find_element(By.TAG_NAME, "input").send_keys(city)
                 # Нажать на ввод поиска
                 driver.find_element(By.TAG_NAME, "button").click()
@@ -159,11 +161,11 @@ def get_screens(city_list, url='https://lostarmour.info/map/?ysclid=latojsz8nr36
                     By.XPATH,
                     "//span[@class='inline-image _loaded sidebar-toggle-button__icon']").click()
                 # Создаем папку для фото
-                if not os.path.exists(f"Скриншоты/{Date}"):
-                    os.mkdir(f"Скриншоты/{Date}")
+                if not os.path.exists(f"Скриншоты/{date}"):
+                    os.mkdir(f"Скриншоты/{date}")
 
                 # Делаем скриншот
-                driver.save_screenshot(f'Скриншоты/{Date}/{city}.png')
+                driver.save_screenshot(f'Скриншоты/{date}/{city}.png')
                 # Отчистить поле поиска нажав кнопку
                 driver.find_element(
                     By.XPATH,
@@ -197,7 +199,7 @@ def find_distance(sentence, word1, word2):
 
 
 def text_cheсk(df_with_text, text_column_name, all_key_words, cities_list, russian_cities_list, check_cities_list):
-    """определеяет в каких текстах есть ключивые слова (пересечение городов и проблеммы)"""
+    """Определеяет в каких текстах есть ключевые слова (пересечение городов и проблемы)"""
     df_texts = df_with_text.copy()
     # Выделяем леммы
     new_text_list = lemm_finder(list_of_text=list(df_texts[text_column_name]))
@@ -244,7 +246,6 @@ def text_cheсk(df_with_text, text_column_name, all_key_words, cities_list, russ
     df_with_text['checked_cities'] = [
         ','.join(list(set(find_words(check_cities_list, df_texts.loc[index]['New_text'])))) if
         df_texts.loc[index]['Contains_sum'] == 3 else 0 for index in df_texts.index]
-    df_with_text
     return df_with_text
 
 
@@ -357,7 +358,7 @@ for i in list(geoobject_our['name_area_new'].dropna()) + list(geoobject_our['reg
 russian_cities_list = [a for a in cities_list_new if a in geoobject_our_list]
 check_cities_list = [a for a in cities_list_new if a not in geoobject_our_list]
 
-get_screens(city_list=check_cities_list, url='https://lostarmour.info/map/?ysclid=latojsz8nr362636823)', Date=Date)
+get_screens(city_list=check_cities_list, url='https://lostarmour.info/map/?ysclid=latojsz8nr362636823)', date=Date)
 ########################################################################################################################
 
 # Скачиваем данные
